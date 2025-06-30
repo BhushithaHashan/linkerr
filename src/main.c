@@ -1,39 +1,106 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 #include "linkerr.h"
+#include <unistd.h>   // for access()
+#include <sys/stat.h> // for stat()
 
-#define MAX_PATH 512// Max path buffer
+// Buffer sizes
+#define PATH_MAX_LEN PATH_MAX
+#define NAME_MAX_LEN 256
 
-void interactive_link(const char *source) {
-    int type;
-    char dir[MAX_PATH];
-    char name[MAX_PATH];
-
-    // Ask the user for link type
-    printf("Choose link type:\n1) Soft link\n2) Hard link\n> ");
-    scanf("%d",&type);
-    getchar();// consume newline
-
-    //Ask target directory
-    printf("Enter target directory:\n> ");
-    fgets(dir, MAX_PATH, stdin);
-    dir[strcspn(dir, "\n")] = 0;
-
-    //Ask new link name
-    printf("Enter new link name:\n> ");
-    fgets(name,MAX_PATH,stdin);
-    name[strcspn(name,"\n")] = 0;
+/**
+ * Expand '~' to home directory if present
+ */
+void expand_home(char *path, size_t size) {
+    if (path[0] == '~') {
+        const char *home = getenv("HOME");
+        if (!home) home = "";
+        char temp[PATH_MAX_LEN];
+        snprintf(temp, sizeof(temp), "%s%s", home, path + 1);
+        strncpy(path, temp, size);
+        path[size - 1] = '\0';
+    }
 }
 
+/**
+ * Interactive CLI to create soft or hard links
+ */
+void interactive_link(void) {
+    int type;
+    char src_dir[PATH_MAX_LEN];
+    char src_name[NAME_MAX_LEN];
+    char link_dir[PATH_MAX_LEN];
+    char link_name[NAME_MAX_LEN];
+    char src_full[PATH_MAX_LEN];
+    char link_full[PATH_MAX_LEN];
 
-int main(int argc, char *argv[]) {
-    //Check arguments
-    if (argc != 3||strcmp(argv[1], "link")!=0) {
-        printf("Usage:\n  linkerr link <source_path>\n");
-        return 1;
+    // Ask for link type
+    printf("Choose link type:\n1) Soft link\n2) Hard link\n> ");
+    if (scanf("%d", &type) != 1) {
+        fprintf(stderr, "Invalid input.\n");
+        return;
+    }
+    getchar(); // consume newline
+
+    // Get source directory
+    printf("Enter source directory path:\n> ");
+    if (!fgets(src_dir, PATH_MAX_LEN, stdin)) return;
+    src_dir[strcspn(src_dir, "\n")] = 0;
+    expand_home(src_dir, PATH_MAX_LEN);
+
+    // Get source file/dir name
+    printf("Enter source file or directory name:\n> ");
+    if (!fgets(src_name, NAME_MAX_LEN, stdin)) return;
+    src_name[strcspn(src_name, "\n")] = 0;
+
+    // Build full source path
+    if (snprintf(src_full, PATH_MAX_LEN, "%s/%s", src_dir, src_name) >= PATH_MAX_LEN) {
+        fprintf(stderr, "Error: Source path too long.\n");
+        return;
     }
 
-    //call interactive function
+    // Get target link directory
+    printf("Enter target directory for the link:\n> ");
+    if (!fgets(link_dir, PATH_MAX_LEN, stdin)) return;
+    link_dir[strcspn(link_dir, "\n")] = 0;
+    expand_home(link_dir, PATH_MAX_LEN);
+
+    // Get link name
+    printf("Enter name for the new link:\n> ");
+    if (!fgets(link_name, NAME_MAX_LEN, stdin)) return;
+    link_name[strcspn(link_name, "\n")] = 0;
+
+    // Build full link path
+    if (snprintf(link_full, PATH_MAX_LEN, "%s/%s", link_dir, link_name) >= PATH_MAX_LEN) {
+        fprintf(stderr, "Error: Link path too long.\n");
+        return;
+    }
+
+    // Perform the link operation
+    if (type == 2) {
+        if (is_directory(src_full)) {
+            fprintf(stderr, "\nError: Hard links to directories are prohibited.\n");
+            fprintf(stderr, "Reason: To prevent filesystem cycles and corruption.\n\n");
+            return;
+        }
+        if (create_hard_link(src_full, link_full) == 0)
+            print_success(src_full, link_full, 0);
+    } else if (type == 1) {
+        if (create_soft_link(src_full, link_full) == 0)
+            print_success(src_full, link_full, 1);
+    } else {
+        fprintf(stderr, "Invalid option selected.\n");
+    }
+    return;
+}
+
+/**
+ * Entry point
+ */
+int main(void) {
+    printf("Welcome to linkerr - interactive link manager\n");
+    interactive_link();
     return 0;
 }
