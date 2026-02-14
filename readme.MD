@@ -55,14 +55,3 @@ Hard link created successfully!
 Source: /home/user/tmp/myfile.txt
 Link:   /home/user/tmp/links/myfile_hardlink
 
-## Folder structure
-
-linkerr/
-├── include/
-│   └── linkerr.h       # Header for link operations and utilities
-├── src/
-│   ├── main.c          # Interactive CLI logic
-│   ├── link_ops.c      # Functions for creating links
-│   └── utils.c         # Helper functions (is_directory, print_success, path handling)
-├── Makefile            # Build instructions
-└── README.md
