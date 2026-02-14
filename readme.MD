@@ -37,6 +37,7 @@ make
 ./linkerr
 ```
 ## Example
+```bash
 Welcome to linkerr - interactive link manager
 Choose link type:
 1) Soft link
@@ -54,4 +55,6 @@ Enter name for the new link:
 Hard link created successfully!
 Source: /home/user/tmp/myfile.txt
 Link:   /home/user/tmp/links/myfile_hardlink
+
+```
 
